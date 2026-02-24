@@ -6,23 +6,28 @@ import {
   getTodos,
   updateTodo,
 } from "../service/todos"
-import type { Todo } from "../types/Todo"
 
-// Get all todos
+import {
+  createTodoSchema,
+  updateTodoSchema,
+  idParamSchema,
+} from "../validators/todoValidators"
+
+// Get all
 export const listTodos = (_req: Request, res: Response): void => {
   res.json(getTodos())
 }
 
-// Get single todo
+// Get one
 export const getSingleTodo = (req: Request, res: Response): void => {
-  const id = Number(req.params.id)
+  const parsed = idParamSchema.safeParse(req.params)
 
-  if (Number.isNaN(id)) {
-    res.status(400).json({ message: "Invalid todo id" })
+  if (!parsed.success) {
+    res.status(400).json(parsed.error.flatten())
     return
   }
 
-  const todo = getTodoById(id)
+  const todo = getTodoById(parsed.data.id)
 
   if (!todo) {
     res.status(404).json({ message: "Todo not found" })
@@ -32,36 +37,36 @@ export const getSingleTodo = (req: Request, res: Response): void => {
   res.json(todo)
 }
 
-// Create todo
+// Create
 export const createSingleTodo = (req: Request, res: Response): void => {
-  const { name, dueDate } = req.body as Partial<Todo>
+  const parsed = createTodoSchema.safeParse(req.body)
 
-  if (!name || typeof name !== "string" || name.trim().length === 0) {
-    res.status(400).json({ message: "Todo name is required" })
+  if (!parsed.success) {
+    res.status(400).json(parsed.error.flatten())
     return
   }
 
-  if (!dueDate || typeof dueDate !== "string") {
-    res.status(400).json({ message: "Valid dueDate is required" })
-    return
-  }
+  const { name, dueDate } = parsed.data
+  const newTodo = createTodo(name, dueDate)
 
-  const newTodo = createTodo(name.trim(), dueDate)
   res.status(201).json(newTodo)
 }
 
-// Update todo
+// Update
 export const updateSingleTodo = (req: Request, res: Response): void => {
-  const id = Number(req.params.id)
-
-  if (Number.isNaN(id)) {
-    res.status(400).json({ message: "Invalid todo id" })
+  const idParsed = idParamSchema.safeParse(req.params)
+  if (!idParsed.success) {
+    res.status(400).json(idParsed.error.flatten())
     return
   }
 
-  const updates = req.body as Partial<Omit<Todo, "id">>
+  const bodyParsed = updateTodoSchema.safeParse(req.body)
+  if (!bodyParsed.success) {
+    res.status(400).json(bodyParsed.error.flatten())
+    return
+  }
 
-  const updated = updateTodo(id, updates)
+  const updated = updateTodo(idParsed.data.id, bodyParsed.data)
 
   if (!updated) {
     res.status(404).json({ message: "Todo not found" })
@@ -71,16 +76,16 @@ export const updateSingleTodo = (req: Request, res: Response): void => {
   res.json(updated)
 }
 
-// Delete todo
+// Delete
 export const deleteSingleTodo = (req: Request, res: Response): void => {
-  const id = Number(req.params.id)
+  const parsed = idParamSchema.safeParse(req.params)
 
-  if (Number.isNaN(id)) {
-    res.status(400).json({ message: "Invalid todo id" })
+  if (!parsed.success) {
+    res.status(400).json(parsed.error.flatten())
     return
   }
 
-  const deleted = deleteTodoById(id)
+  const deleted = deleteTodoById(parsed.data.id)
 
   if (!deleted) {
     res.status(404).json({ message: "Todo not found" })
